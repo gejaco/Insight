@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insight</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect x="6" y="6" width="36" height="36" rx="12" class="logo-frame"></rect>
+            <path d="M18 24c2.2-5.5 9.8-5.5 12 0" class="logo-arc"></path>
+            <circle cx="24" cy="24" r="2.5" class="logo-dot"></circle>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Insight</h1>
+          <p class="brand-subtitle">Clinical Transcript Review</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div id="connectionStatus" class="status-pill status-idle">Connecting</div>
+        <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle theme">
+          <span class="theme-icon">◐</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="main-layout">
+      <aside class="side-panel">
+        <section class="panel-card">
+          <p class="panel-label">Session</p>
+          <h2 class="panel-title">Live Intake</h2>
+          <p class="panel-copy">
+            Real-time transcript stream for review, note-taking, and speaker tracking.
+          </p>
+        </section>
+
+        <section class="panel-card">
+          <p class="panel-label">Connection</p>
+          <dl class="meta-list">
+            <div>
+              <dt>WebSocket</dt>
+              <dd id="wsState">Starting…</dd>
+            </div>
+            <div>
+              <dt>Segments</dt>
+              <dd id="segmentCount">0</dd>
+            </div>
+            <div>
+              <dt>Last update</dt>
+              <dd id="lastUpdated">Waiting</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel-card">
+          <p class="panel-label">Actions</p>
+          <div class="button-stack">
+            <button id="clearBtn" class="button button-secondary" type="button">Clear transcript</button>
+            <button id="scrollBtn" class="button button-ghost" type="button">Scroll to latest</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="center-stage">
+        <div class="hero-copy">
+          <p class="eyebrow">Live transcript monitor</p>
+          <h2>Focused, readable, clinician-friendly transcript review.</h2>
+          <p>
+            Insight presents incoming transcript segments in a centered workspace designed for calm reading and live observation.
+          </p>
+        </div>
+
+        <section class="transcript-card" aria-labelledby="transcriptHeading">
+          <div class="transcript-header">
+            <div>
+              <p class="panel-label">Transcript</p>
+              <h3 id="transcriptHeading">Session Transcript</h3>
+            </div>
+            <div id="debugMeta" class="header-meta">Awaiting data</div>
+          </div>
+
+          <div id="transcriptFeed" class="transcript-feed" aria-live="polite">
+            <div class="empty-state">
+              <p>No transcript yet.</p>
+              <span>Waiting for live segments from the backend.</span>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const transcriptFeed = document.getElementById("transcriptFeed");
+    const connectionStatus = document.getElementById("connectionStatus");
+    const wsState = document.getElementById("wsState");
+    const segmentCount = document.getElementById("segmentCount");
+    const lastUpdated = document.getElementById("lastUpdated");
+    const debugMeta = document.getElementById("debugMeta");
+    const clearBtn = document.getElementById("clearBtn");
+    const scrollBtn = document.getElementById("scrollBtn");
+    const themeToggle = document.getElementById("themeToggle");
+    const root = document.documentElement;
+
+    let theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    root.setAttribute("data-theme", theme);
+
+    themeToggle.addEventListener("click", () => {
+      theme = theme === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", theme);
+    });
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderSegments(segments) {
+      segmentCount.textContent = String(segments.length);
+
+      if (!segments.length) {
+        transcriptFeed.innerHTML = `
+          <div class="empty-state">
+            <p>No transcript yet.</p>
+            <span>Waiting for live segments from the backend.</span>
+          </div>
+        `;
+        return;
+      }
+
+      transcriptFeed.innerHTML = segments.map((segment, index) => {
+        const speaker = segment.speaker ? escapeHtml(segment.speaker) : "Unknown speaker";
+        const text = escapeHtml(segment.text || "");
+        return `
+          <article class="segment-row">
+            <div class="speaker-badge">${speaker}</div>
+            <div class="segment-body">
+              <div class="segment-index">Segment ${index + 1}</div>
+              <p>${text || "<em>Empty segment</em>"}</p>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
+    }
+
+    async function clearTranscript() {
+      const res = await fetch("/transcript", { method: "DELETE" });
+      const data = await res.json();
+      console.log("Clear response:", data);
+    }
+
+    clearBtn.addEventListener("click", clearTranscript);
+    scrollBtn.addEventListener("click", () => {
+      transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
+    });
+
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+    socket.onopen = () => {
+      connectionStatus.textContent = "Connected";
+      connectionStatus.className = "status-pill status-live";
+      wsState.textContent = "Open";
+      debugMeta.textContent = "Live connection active";
+    };
+
+    socket.onclose = (event) => {
+      connectionStatus.textContent = `Disconnected`;
+      connectionStatus.className = "status-pill status-offline";
+      wsState.textContent = `Closed (${event.code})`;
+      debugMeta.textContent = "Connection closed";
+    };
+
+    socket.onerror = () => {
+      connectionStatus.textContent = "Error";
+      connectionStatus.className = "status-pill status-offline";
+      wsState.textContent = "Error";
+      debugMeta.textContent = "WebSocket error";
+    };
+
+    socket.onmessage = (event) => {
+      console.log("Raw WS message:", event.data);
+      const now = new Date();
+      lastUpdated.textContent = now.toLocaleTimeString();
+      debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
+
+      try {
+        const data = JSON.parse(event.data);
+        const segments = Array.isArray(data) ? data : (data.segments || []);
+        renderSegments(segments);
+      } catch (error) {
+        console.error("Failed to parse WS payload:", error);
+      }
+    };
+
+    setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send("ping");
+      }
+    }, 20000);
+  </script>
+</body>
+</html>
