@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insight</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect x="6" y="6" width="36" height="36" rx="12" class="logo-frame"></rect>
+            <path d="M18 24c2.2-5.5 9.8-5.5 12 0" class="logo-arc"></path>
+            <circle cx="24" cy="24" r="2.5" class="logo-dot"></circle>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Insight</h1>
+          <p class="brand-subtitle">Clinical Session Workspace</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div id="connectionStatus" class="status-pill status-idle">Connecting</div>
+        <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle theme">◐</button>
+      </div>
+    </header>
+
+    <main id="main" class="dashboard-grid">
+      <aside class="left-rail">
+        <section class="panel-card">
+          <p class="panel-label">Session</p>
+          <h2 id="sessionTitle" class="panel-title">Live Session</h2>
+          <div class="meta-stack">
+            <div><span>Clinician</span><strong id="clinicianName">Unassigned</strong></div>
+            <div><span>Client</span><strong id="clientName">Active Client</strong></div>
+            <div><span>Started</span><strong id="startedAt">Waiting</strong></div>
+            <div><span>Segments</span><strong id="segmentCount">0</strong></div>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <p class="panel-label">Legend</p>
+          <div class="legend-list">
+            <div><span class="legend-dot therapist"></span>Therapist</div>
+            <div><span class="legend-dot client"></span>Client</div>
+            <div><span class="legend-dot unknown"></span>Unknown / system</div>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <p class="panel-label">Actions</p>
+          <div class="button-stack">
+            <button id="scrollBtn" class="button button-secondary" type="button">Jump to latest</button>
+            <button id="clearBtn" class="button button-ghost" type="button">Clear transcript</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="center-column">
+        <div class="hero-copy">
+          <p class="eyebrow">Live transcript</p>
+          <h2>Transcript centered for attentive reading.</h2>
+          <p>Watch the conversation unfold in real time with speaker-aware formatting and a distraction-reduced reading surface.</p>
+        </div>
+
+        <section class="transcript-card">
+          <div class="transcript-header">
+            <div>
+              <p class="panel-label">Transcript feed</p>
+              <h3>Session Transcript</h3>
+            </div>
+            <div id="debugMeta" class="header-meta">Awaiting data</div>
+          </div>
+
+          <div id="transcriptFeed" class="transcript-feed" aria-live="polite">
+            <div class="empty-state">
+              <p>No transcript yet.</p>
+              <span>Waiting for live transcript segments from the backend.</span>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="right-rail">
+        <section class="panel-card notes-card">
+          <div class="notes-header">
+            <div>
+              <p class="panel-label">Clinical notes</p>
+              <h3>Session Notes</h3>
+            </div>
+            <div id="saveState" class="save-state">Unsaved</div>
+          </div>
+
+          <textarea id="notesInput" class="notes-input" placeholder="Write observations, key themes, risks, interventions, or follow-up items..."></textarea>
+
+          <div class="tags-block">
+            <p class="panel-label compact">Quick markers</p>
+            <div class="tag-buttons">
+              <button class="tag-button" data-tag="Anxiety">Anxiety</button>
+              <button class="tag-button" data-tag="Mood">Mood</button>
+              <button class="tag-button" data-tag="Sleep">Sleep</button>
+              <button class="tag-button" data-tag="Risk">Risk</button>
+              <button class="tag-button" data-tag="Insight">Insight</button>
+              <button class="tag-button" data-tag="Homework">Homework</button>
+            </div>
+          </div>
+
+          <div>
+            <p class="panel-label compact">Selected markers</p>
+            <div id="activeTags" class="active-tags"></div>
+          </div>
+
+          <button id="saveNotesBtn" class="button button-secondary full-width" type="button">Save notes</button>
+        </section>
+
+        <section class="panel-card">
+          <p class="panel-label">Connection</p>
+          <div class="meta-stack">
+            <div><span>WebSocket</span><strong id="wsState">Starting…</strong></div>
+            <div><span>Last update</span><strong id="lastUpdated">Waiting</strong></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const transcriptFeed = document.getElementById("transcriptFeed");
+    const connectionStatus = document.getElementById("connectionStatus");
+    const wsState = document.getElementById("wsState");
+    const lastUpdated = document.getElementById("lastUpdated");
+    const debugMeta = document.getElementById("debugMeta");
+    const segmentCount = document.getElementById("segmentCount");
+    const sessionTitle = document.getElementById("sessionTitle");
+    const clinicianName = document.getElementById("clinicianName");
+    const clientName = document.getElementById("clientName");
+    const startedAt = document.getElementById("startedAt");
+    const clearBtn = document.getElementById("clearBtn");
+    const scrollBtn = document.getElementById("scrollBtn");
+    const themeToggle = document.getElementById("themeToggle");
+    const notesInput = document.getElementById("notesInput");
+    const saveNotesBtn = document.getElementById("saveNotesBtn");
+    const saveState = document.getElementById("saveState");
+    const activeTags = document.getElementById("activeTags");
+    const tagButtons = document.querySelectorAll(".tag-button");
+
+    const root = document.documentElement;
+    let theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    root.setAttribute("data-theme", theme);
+
+    let selectedTags = [];
+
+    themeToggle.addEventListener("click", () => {
+      theme = theme === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", theme);
+    });
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function speakerClass(speaker) {
+      const s = (speaker || "").toLowerCase();
+      if (s.includes("therapist") || s.includes("clinician") || s.includes("speaker_0")) return "therapist";
+      if (s.includes("client") || s.includes("patient") || s.includes("speaker_1")) return "client";
+      return "unknown";
+    }
+
+    function renderSession(session, count) {
+      sessionTitle.textContent = session.session_title || "Live Session";
+      clinicianName.textContent = session.clinician || "Unassigned";
+      clientName.textContent = session.client || "Active Client";
+      startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";
+      segmentCount.textContent = String(count || 0);
+
+      notesInput.value = session.notes || "";
+      selectedTags = Array.isArray(session.tags) ? session.tags : [];
+      renderTags();
+    }
+
+    function renderTags() {
+      activeTags.innerHTML = selectedTags.length
+        ? selectedTags.map(tag => `<span class="active-tag">${escapeHtml(tag)}</span>`).join("")
+        : `<span class="muted-inline">No markers selected</span>`;
+
+      tagButtons.forEach(btn => {
+        const tag = btn.dataset.tag;
+        btn.classList.toggle("selected", selectedTags.includes(tag));
+      });
+    }
+
+    function renderSegments(segments) {
+      if (!segments.length) {
+        transcriptFeed.innerHTML = `
+          <div class="empty-state">
+            <p>No transcript yet.</p>
+            <span>Waiting for live transcript segments from the backend.</span>
+          </div>
+        `;
+        return;
+      }
+
+      transcriptFeed.innerHTML = segments.map((segment, index) => {
+        const speaker = segment.speaker || "Unknown speaker";
+        const cls = speakerClass(speaker);
+        return `
+          <article class="segment-row ${cls}">
+            <div class="speaker-column">
+              <span class="speaker-chip ${cls}">${escapeHtml(speaker)}</span>
+              <span class="segment-index">Segment ${index + 1}</span>
+            </div>
+            <div class="segment-body">
+              <p>${escapeHtml(segment.text || "")}</p>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
+    }
+
+    async function saveNotes() {
+      saveState.textContent = "Saving…";
+      const res = await fetch("/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notesInput.value,
+          tags: selectedTags
+        })
+      });
+      const data = await res.json();
+      console.log("Saved notes:", data);
+      saveState.textContent = "Saved";
+    }
+
+    saveNotesBtn.addEventListener("click", saveNotes);
+    notesInput.addEventListener("input", () => {
+      saveState.textContent = "Unsaved";
+    });
+
+    tagButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tag = btn.dataset.tag;
+        if (selectedTags.includes(tag)) {
+          selectedTags = selectedTags.filter(t => t !== tag);
+        } else {
+          selectedTags = [...selectedTags, tag];
+        }
+        renderTags();
+        saveState.textContent = "Unsaved";
+      });
+    });
+
+    clearBtn.addEventListener("click", async () => {
+      await fetch("/transcript", { method: "DELETE" });
+    });
+
+    scrollBtn.addEventListener("click", () => {
+      transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
+    });
+
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+    socket.onopen = () => {
+      connectionStatus.textContent = "Connected";
+      connectionStatus.className = "status-pill status-live";
+      wsState.textContent = "Open";
+      debugMeta.textContent = "Live connection active";
+    };
+
+    socket.onclose = (event) => {
+      connectionStatus.textContent = "Disconnected";
+      connectionStatus.className = "status-pill status-offline";
+      wsState.textContent = `Closed (${event.code})`;
+      debugMeta.textContent = "Connection closed";
+    };
+
+    socket.onerror = () => {
+      connectionStatus.textContent = "Error";
+      connectionStatus.className = "status-pill status-offline";
+      wsState.textContent = "Error";
+      debugMeta.textContent = "WebSocket error";
+    };
+
+    socket.onmessage = (event) => {
+      console.log("Raw WS message:", event.data);
+      const now = new Date();
+      lastUpdated.textContent = now.toLocaleTimeString();
+      debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
+
+      try {
+        const data = JSON.parse(event.data);
+        renderSession(data.session || {}, data.count || 0);
+        renderSegments(data.segments || []);
+      } catch (error) {
+        console.error("Failed to parse WS payload:", error);
+      }
+    };
+
+    setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send("ping");
+      }
+    }, 20000);
+  </script>
+</body>
+</html>
