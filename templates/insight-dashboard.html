@@ -49,15 +49,6 @@
         </section>
 
         <section class="panel-card">
-          <p class="panel-label">Legend</p>
-          <div class="legend-list">
-            <div><span class="legend-dot therapist"></span>Therapist</div>
-            <div><span class="legend-dot client"></span>Client</div>
-            <div><span class="legend-dot unknown"></span>Unknown / system</div>
-          </div>
-        </section>
-
-        <section class="panel-card">
           <p class="panel-label">Actions</p>
           <div class="button-stack">
             <button id="scrollBtn" class="button button-secondary" type="button">Jump to latest</button>
@@ -69,8 +60,7 @@
       <section class="center-column">
         <div class="hero-copy">
           <p class="eyebrow">Live transcript</p>
-          <h2>Transcript centered for attentive reading.</h2>
-          <p>Watch the conversation unfold in real time with speaker-aware formatting and a distraction-reduced reading surface.</p>
+          <h2>Clinical Transcript Review</h2>          
         </div>
 
         <section class="transcript-card">
@@ -123,13 +113,6 @@
           <button id="saveNotesBtn" class="button button-secondary full-width" type="button">Save notes</button>
         </section>
 
-        <section class="panel-card">
-          <p class="panel-label">Connection</p>
-          <div class="meta-stack">
-            <div><span>WebSocket</span><strong id="wsState">Starting…</strong></div>
-            <div><span>Last update</span><strong id="lastUpdated">Waiting</strong></div>
-          </div>
-        </section>
       </aside>
     </main>
   </div>
@@ -137,8 +120,6 @@
   <script>
     const transcriptFeed = document.getElementById("transcriptFeed");
     const connectionStatus = document.getElementById("connectionStatus");
-    const wsState = document.getElementById("wsState");
-    const lastUpdated = document.getElementById("lastUpdated");
     const debugMeta = document.getElementById("debugMeta");
     const segmentCount = document.getElementById("segmentCount");
     const sessionTitle = document.getElementById("sessionTitle");
@@ -281,28 +262,24 @@
     socket.onopen = () => {
       connectionStatus.textContent = "Connected";
       connectionStatus.className = "status-pill status-live";
-      wsState.textContent = "Open";
       debugMeta.textContent = "Live connection active";
     };
 
     socket.onclose = (event) => {
       connectionStatus.textContent = "Disconnected";
       connectionStatus.className = "status-pill status-offline";
-      wsState.textContent = `Closed (${event.code})`;
       debugMeta.textContent = "Connection closed";
     };
 
     socket.onerror = () => {
       connectionStatus.textContent = "Error";
       connectionStatus.className = "status-pill status-offline";
-      wsState.textContent = "Error";
       debugMeta.textContent = "WebSocket error";
     };
 
     socket.onmessage = (event) => {
       console.log("Raw WS message:", event.data);
       const now = new Date();
-      lastUpdated.textContent = now.toLocaleTimeString();
       debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
 
       try {
