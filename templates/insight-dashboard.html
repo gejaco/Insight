@@ -128,6 +128,7 @@
     const clinicianName = document.getElementById("clinicianName");
     const clientName = document.getElementById("clientName");
     const startedAt = document.getElementById("startedAt");
+    const endedAt = document.getElementById("endedAt");
     const clearBtn = document.getElementById("clearBtn");
     const scrollBtn = document.getElementById("scrollBtn");
     const themeToggle = document.getElementById("themeToggle");
@@ -356,14 +357,23 @@
       }
     }, 20000);
 
-    endSessionBtn?.addEventListener("click", () => {
-      sessionEnded = true;
-      endSessionBtn.disabled = true;
-      endSessionBtn.textContent = "Session Ended";
-      connectionStatus.textContent = "Ended";
-      connectionStatus.className = "status-pill status-offline";
-      debugMeta.textContent = "Session ended — not displaying new segments";
-      try { socket.close(); } catch (e) { /* ignore */ }
+endSessionBtn?.addEventListener("click", () => {
+      if (!sessionEnded) {
+        // End the current session
+        sessionEnded = true;
+        const now = new Date();
+        // set ended time in the session panel
+        if (endedAt) endedAt.textContent = now.toLocaleTimeString();
+        // change button label to allow starting a new session
+        endSessionBtn.textContent = "Start New Session";
+        connectionStatus.textContent = "Ended";
+        connectionStatus.className = "status-pill status-offline";
+        debugMeta.textContent = `Ended at ${now.toLocaleTimeString()} — not displaying new segments`;
+        try { socket.close(); } catch (e) { /* ignore */ }
+      } else {
+        // Start a new session — simple approach: reload to re-init and reconnect
+        window.location.reload();
+      }
     });
   </script>
 </body>
