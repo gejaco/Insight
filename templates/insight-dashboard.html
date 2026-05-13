@@ -124,7 +124,6 @@
     const transcriptFeed = document.getElementById("transcriptFeed");
     const connectionStatus = document.getElementById("connectionStatus");
     const debugMeta = document.getElementById("debugMeta");
-    const segmentCount = document.getElementById("segmentCount");
     const sessionTitle = document.getElementById("sessionTitle");
     const clinicianName = document.getElementById("clinicianName");
     const clientName = document.getElementById("clientName");
@@ -171,8 +170,7 @@
       sessionTitle.textContent = session.session_title || "Live Session";
       clinicianName.textContent = session.clinician || "Unassigned";
       clientName.textContent = session.client || "Active Client";
-      startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";
-      segmentCount.textContent = String(count || 0);
+      startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";      
 
       notesInput.value = session.notes || "";
       selectedTags = Array.isArray(session.tags) ? session.tags : [];
