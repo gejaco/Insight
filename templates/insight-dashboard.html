@@ -196,20 +196,43 @@
         return;
       }
 
+      function getTimeMs(segment) {
+        const v = segment.timestamp ?? segment.start_time ?? segment.start ?? segment.ts ?? segment.t;
+        if (v == null) return null;
+        if (typeof v === "number") {
+          // if it's clearly seconds (reasonable cutoff), convert to ms
+          return v < 1e12 ? Math.round(v * 1000) : Math.round(v);
+        }
+        // try parse string
+        const parsed = Date.parse(String(v));
+        if (!isNaN(parsed)) return parsed;
+        // fallback to numeric string (seconds)
+        const n = parseFloat(String(v));
+        if (!isNaN(n)) return n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+        return null;
+      }
+
+
       // group consecutive segments that have the same speaker into one paragraph
       const groups = [];
       segments.forEach((segment, index) => {
-        const speaker = segment.speaker || "Unknown speaker";
-        const cls = speakerClass(speaker);
-        const text = segment.text || "";   
+       const speaker = segment.speaker || "Unknown speaker";
+       const cls = speakerClass(speaker);
+       const text = segment.text || "";   
+       const ts = getTimeMs(segment);        
         
         if (groups.length) {
           const last = groups[groups.length - 1];
           if (last.speaker === speaker && last.cls === cls) {
-            // same speaker as previous group -> append text
-            last.text = last.text ? `${last.text} ${text}` : text;
+            // same speaker as previous group -> append as a piece
+            const lastPiece = last.pieces[last.pieces.length - 1];
+            let newLineBefore = false;
+            if (lastPiece && lastPiece.ts != null && ts != null) {
+              newLineBefore = (ts - lastPiece.ts) > 5000; // > 5 seconds gap
+            }
+            last.pieces.push({ text, ts, newLineBefore });
             last.endIndex = index;
-            return;
+            return
           }
         }        
 
@@ -217,13 +240,19 @@
         groups.push({
           speaker,
           cls,
-          text,
+          pieces: [{ text, ts, newLineBefore: false }],
           startIndex: index,
           endIndex: index
         });
       });
 
       transcriptFeed.innerHTML = groups.map((g) => {
+        const bodyHtml = g.pieces.map((p, i) => {
+          const escaped = escapeHtml(p.text);
+          if (i === 0) return escaped;
+          return (p.newLineBefore ? "<br>" : " ") + escaped;
+        }).join("");
+
         return `
           <article class="segment-row ${escapeHtml(g.cls)}">
             <div class="speaker-column">
@@ -231,7 +260,7 @@
               <span class="segment-index">Segment ${g.startIndex + 1}</span>
             </div>
             <div class="segment-body">
-              <p>${escapeHtml(g.text)}</p>
+              <p>${bodyHtml}</p>
             </div>
           </article>
         `;
