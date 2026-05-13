@@ -70,7 +70,10 @@
               <h3>Session Transcript</h3>
             </div>
             <div id="debugMeta" class="header-meta">Awaiting data</div>
-          </div>
+            <div class="header-actions">
+              <div id="debugMeta" class="header-meta">Awaiting data</div>
+              <button id="endSessionBtn" class="button button-ghost" type="button">End Session</button>
+            </div>
 
           <div id="transcriptFeed" class="transcript-feed" aria-live="polite">
             <div class="empty-state">
@@ -134,6 +137,8 @@
     const saveState = document.getElementById("saveState");
     const activeTags = document.getElementById("activeTags");
     const tagButtons = document.querySelectorAll(".tag-button");
+    const endSessionBtn = document.getElementById("endSessionBtn");
+    let sessionEnded = false;
 
     const root = document.documentElement;
     let theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -332,6 +337,7 @@
     };
 
     socket.onmessage = (event) => {
+      if (sessionEnded) return;
       console.log("Raw WS message:", event.data);
       const now = new Date();
       debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
@@ -346,10 +352,21 @@
     };
 
     setInterval(() => {
+      if (sessionEnded) return;
       if (socket.readyState === WebSocket.OPEN) {
         socket.send("ping");
       }
     }, 20000);
+
+    endSessionBtn?.addEventListener("click", () => {
+      sessionEnded = true;
+      endSessionBtn.disabled = true;
+      endSessionBtn.textContent = "Session Ended";
+      connectionStatus.textContent = "Ended";
+      connectionStatus.className = "status-pill status-offline";
+      debugMeta.textContent = "Session ended — not displaying new segments";
+      try { socket.close(); } catch (e) { /* ignore */ }
+    });
   </script>
 </body>
 </html>
