@@ -196,17 +196,42 @@
         return;
       }
 
-      transcriptFeed.innerHTML = segments.map((segment, index) => {
+      // group consecutive segments that have the same speaker into one paragraph
+      const groups = [];
+      segments.forEach((segment, index) => {
         const speaker = segment.speaker || "Unknown speaker";
         const cls = speakerClass(speaker);
+        const text = segment.text || "";   
+        
+        if (groups.length) {
+          const last = groups[groups.length - 1];
+          if (last.speaker === speaker && last.cls === cls) {
+            // same speaker as previous group -> append text
+            last.text = last.text ? `${last.text} ${text}` : text;
+            last.endIndex = index;
+            return;
+          }
+        }        
+
+        // new group for a new speaker
+        groups.push({
+          speaker,
+          cls,
+          text,
+          startIndex: index,
+          endIndex: index
+        });
+      });
+
+      transcriptFeed.innerHTML = groups.map((g) => {
         return `
-          <article class="segment-row ${cls}">
+          <article class="segment-row ${escapeHtml(g.cls)}">
             <div class="speaker-column">
-              <span class="speaker-chip ${cls}">${escapeHtml(speaker)}</span>
-              <span class="segment-index">Segment ${index + 1}</span>
+              <span class="speaker-chip ${escapeHtml(g.cls)}">${escapeHtml(g.speaker)}</span>
+              <span class="segment-index">Segment ${g.startIndex + 1}</span>
             </div>
             <div class="segment-body">
-              <p>${escapeHtml(segment.text || "")}</p>
+              <p>${escapeHtml(g.text)}</p>
             </div>
           </article>
         `;
