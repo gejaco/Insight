@@ -86,8 +86,11 @@ async def broadcast_state():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("insight-dashboard.html", {"request": request})
+    return templates.TemplateResponse("insight-landing.html", {"request": request})
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    return templates.TemplateResponse("insight-dashboard.html", {"request": request})
 
 @app.get("/health")
 async def health():
