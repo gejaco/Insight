@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import Any
 from datetime import datetime
+
+DUMMY_USERNAME = "testUser"
+DUMMY_PASSWORD = "testUser"
 
 app = FastAPI(title="Insight Dashboard")
 
@@ -88,9 +91,21 @@ async def broadcast_state():
 async def home(request: Request):
     return templates.TemplateResponse("insight-landing.html", {"request": request})
 
+
+@app.post("/login")
+async def login(request: Request):
+    body = await request.json()
+    username = body.get("email", "")   # field is named email in the form
+    password = body.get("password", "")
+    if username == DUMMY_USERNAME and password == DUMMY_PASSWORD:
+        return JSONResponse({"ok": True, "redirect": "/dashboard"})
+    return JSONResponse(status_code=401, content={"detail": "Invalid credentials. Please try again."})
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("insight-dashboard.html", {"request": request})
+
 
 @app.get("/health")
 async def health():

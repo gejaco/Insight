@@ -504,8 +504,8 @@
 
       <form id="loginForm" novalidate>
         <div class="form-group">
-          <label for="email">Email address</label>
-          <input type="email" id="email" name="email" autocomplete="email" placeholder="you@clinic.org" required />
+          <label for="email">Username</label>
+          <input type="text" id="email" name="email" autocomplete="email" placeholder="Username" required />
         </div>
 
         <div class="form-group">
@@ -601,30 +601,26 @@
   function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }
   function clearError() { errorMsg.classList.remove('visible'); }
 
+  const DUMMY_USER = 'testUser';
+  const DUMMY_PASS = 'testUser';
+
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    if (!email || !password) { showError('Please enter your email address and password.'); return; }
+    if (!email || !password) { showError('Please enter your username and password.'); return; }
+
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    try {
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        window.location.href = data.redirect || '/dashboard';
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.detail || 'Invalid credentials. Please try again.');
-      }
-    } catch {
-      showError('Unable to connect. Please check your network and try again.');
-    } finally {
+
+    // Simulate a brief loading pause
+    await new Promise(r => setTimeout(r, 600));
+
+    if (email === DUMMY_USER && password === DUMMY_PASS) {
+      window.location.href = '/dashboard';
+    } else {
+      showError('Invalid credentials. Please try again.');
       submitBtn.classList.remove('loading');
       submitBtn.disabled = false;
     }
