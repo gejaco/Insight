@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Insight</title>
+  <title>Insight — Session</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +30,9 @@
       </div>
 
       <div class="topbar-actions">
+        <a href="/dashboard" style="font-size:0.82rem;color:var(--color-muted,#6b7a94);text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:0 0.75rem;height:34px;border:1px solid rgba(43,58,85,0.13);border-radius:8px;margin-right:0.5rem;transition:background 0.15s;" onmouseover="this.style.background='rgba(43,58,85,0.06)'" onmouseout="this.style.background='none'">
+          ← Dashboard
+        </a>
         <div id="connectionStatus" class="status-pill status-idle">Connecting</div>
         <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle theme">◐</button>
       </div>
@@ -121,7 +124,24 @@
   </div>
 
   <script>
-    const transcriptFeed = document.getElementById("transcriptFeed");
+    // ── Read patient + session context from URL ──
+    const _params = new URLSearchParams(window.location.search);
+    const _patientName  = _params.get('patient')  || 'Active Client';
+    const _sessionTitle = _params.get('session')  || 'Live Session';
+    const _sessionNum   = _params.get('num')      || '';
+
+    // Pre-fill the left-rail session panel immediately (before WS data arrives)
+    document.addEventListener('DOMContentLoaded', () => {});
+    // Apply immediately since script is at end of body
+    document.getElementById('sessionTitle').textContent  = _sessionTitle;
+    document.getElementById('clientName').textContent    = _patientName;
+
+    // Update page title
+    document.title = _patientName
+      ? `Insight — ${_sessionTitle} · ${_patientName}`
+      : 'Insight — Session';
+
+        const transcriptFeed = document.getElementById("transcriptFeed");
     const connectionStatus = document.getElementById("connectionStatus");
     const debugMeta = document.getElementById("debugMeta");
     const sessionTitle = document.getElementById("sessionTitle");
@@ -168,10 +188,11 @@
     }
 
     function renderSession(session, count) {
-      sessionTitle.textContent = session.session_title || "Live Session";
+      // Prefer URL params for title + client so dashboard context is always shown
+      sessionTitle.textContent  = _sessionTitle || session.session_title || "Live Session";
       clinicianName.textContent = session.clinician || "Unassigned";
-      clientName.textContent = session.client || "Active Client";
-      startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";      
+      clientName.textContent    = _patientName  || session.client || "Active Client";
+      startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";
 
       notesInput.value = session.notes || "";
       selectedTags = Array.isArray(session.tags) ? session.tags : [];

@@ -102,9 +102,24 @@ async def login(request: Request):
     return JSONResponse(status_code=401, content={"detail": "Invalid credentials. Please try again."})
 
 
+@app.get("/clinician-dashboard", response_class=HTMLResponse)
+async def clinician_dashboard(request: Request):
+    return templates.TemplateResponse("insight-dashboard.html", {"request": request})
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("insight-dashboard.html", {"request": request})
+
+
+@app.get("/session", response_class=HTMLResponse)
+async def session_page(request: Request):
+    return templates.TemplateResponse("insight-session.html", {"request": request})
+
+
+@app.get("/session", response_class=HTMLResponse)
+async def session_page(request: Request):
+    return templates.TemplateResponse("insight-session.html", {"request": request})
 
 
 @app.get("/health")
