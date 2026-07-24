@@ -74,7 +74,7 @@
             </div>
             <div class="header-actions" style="margin-left:auto;display:flex;align-items:center;gap:0.5rem;">
               <div id="debugMeta" class="header-meta">Awaiting data</div>
-              <button id="endSessionBtn" class="button" type="button" style="background:#2b3a55;color:#fff;border:1px solid rgba(0,0,0,0.15);box-shadow:none;">End Session</button>
+              <button id="endSessionBtn" class="button" type="button" style="background:#1a7a52;color:#fff;border:1px solid rgba(0,0,0,0.15);box-shadow:none;">Start Session</button>
             </div>
           </div>
 
@@ -335,64 +335,94 @@
       transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
     });
 
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+    // ── Session state machine ──
+    // States: "idle" → "live" → "ended"
+    let sessionState = "idle";
+    let socket = null;
+    let pingInterval = null;
 
-    socket.onopen = () => {
-      connectionStatus.textContent = "Connected";
-      connectionStatus.className = "status-pill status-live";
-      debugMeta.textContent = "Live connection active";
-    };
+    // Keep the connection status and debug meta reflecting idle state on load
+    connectionStatus.textContent = "Not started";
+    connectionStatus.className = "status-pill status-idle";
+    debugMeta.textContent = "Press Start Session to begin";
 
-    socket.onclose = (event) => {
-      connectionStatus.textContent = "Disconnected";
-      connectionStatus.className = "status-pill status-offline";
-      debugMeta.textContent = "Connection closed";
-    };
+    function openSocket() {
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
-    socket.onerror = () => {
-      connectionStatus.textContent = "Error";
-      connectionStatus.className = "status-pill status-offline";
-      debugMeta.textContent = "WebSocket error";
-    };
+      socket.onopen = () => {
+        connectionStatus.textContent = "Connected";
+        connectionStatus.className = "status-pill status-live";
+        debugMeta.textContent = "Live connection active";
+      };
 
-    socket.onmessage = (event) => {
-      if (sessionEnded) return;
-      console.log("Raw WS message:", event.data);
-      const now = new Date();
-      debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
+      socket.onclose = () => {
+        if (sessionState === "live") {
+          connectionStatus.textContent = "Disconnected";
+          connectionStatus.className = "status-pill status-offline";
+          debugMeta.textContent = "Connection lost";
+        }
+      };
 
-      try {
-        const data = JSON.parse(event.data);
-        renderSession(data.session || {}, data.count || 0);
-        renderSegments(data.segments || []);
-      } catch (error) {
-        console.error("Failed to parse WS payload:", error);
-      }
-    };
+      socket.onerror = () => {
+        connectionStatus.textContent = "Error";
+        connectionStatus.className = "status-pill status-offline";
+        debugMeta.textContent = "WebSocket error";
+      };
 
-    setInterval(() => {
-      if (sessionEnded) return;
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send("ping");
-      }
-    }, 20000);
-
-endSessionBtn?.addEventListener("click", () => {
-      if (!sessionEnded) {
-        // End the current session
-        sessionEnded = true;
+      socket.onmessage = (event) => {
+        if (sessionState !== "live") return;
+        console.log("Raw WS message:", event.data);
         const now = new Date();
-        // set ended time in the session panel
+        debugMeta.textContent = `Updated at ${now.toLocaleTimeString()}`;
+        try {
+          const data = JSON.parse(event.data);
+          renderSession(data.session || {}, data.count || 0);
+          renderSegments(data.segments || []);
+        } catch (error) {
+          console.error("Failed to parse WS payload:", error);
+        }
+      };
+
+      pingInterval = setInterval(() => {
+        if (sessionState === "live" && socket.readyState === WebSocket.OPEN) {
+          socket.send("ping");
+        }
+      }, 20000);
+    }
+
+    function closeSocket() {
+      clearInterval(pingInterval);
+      try { if (socket) socket.close(); } catch (e) { /* ignore */ }
+    }
+
+    endSessionBtn?.addEventListener("click", () => {
+      if (sessionState === "idle") {
+        // ── Start the session ──
+        sessionState = "live";
+        const now = new Date();
+        startedAt.textContent = now.toLocaleTimeString();
+        endSessionBtn.textContent = "End Session";
+        endSessionBtn.style.background = "#2b3a55";
+        connectionStatus.textContent = "Connecting…";
+        connectionStatus.className = "status-pill status-idle";
+        debugMeta.textContent = "Starting session…";
+        openSocket();
+
+      } else if (sessionState === "live") {
+        // ── End the session ──
+        sessionState = "ended";
+        const now = new Date();
         if (endedAt) endedAt.textContent = now.toLocaleTimeString();
-        // change button label to allow starting a new session
         endSessionBtn.textContent = "Start New Session";
+        endSessionBtn.style.background = "#1a7a52";
         connectionStatus.textContent = "Ended";
         connectionStatus.className = "status-pill status-offline";
-        debugMeta.textContent = `Ended at ${now.toLocaleTimeString()} — not displaying new segments`;
-        try { socket.close(); } catch (e) { /* ignore */ }
+        debugMeta.textContent = `Ended at ${now.toLocaleTimeString()}`;
+        closeSocket();
+
       } else {
-        // Start a new session — simple approach: reload to re-init and reconnect
+        // ── Start a new session ── (reload to reset everything)
         window.location.reload();
       }
     });
