@@ -126,15 +126,15 @@
   <script>
     // ── Read patient + session context from URL ──
     const _params = new URLSearchParams(window.location.search);
-    const _patientName  = _params.get('patient')  || 'Active Client';
-    const _sessionTitle = _params.get('session')  || 'Live Session';
-    const _sessionNum   = _params.get('num')      || '';
+    const _patientName   = _params.get('patient')   || 'Active Client';
+    const _sessionTitle  = _params.get('session')   || 'Live Session';
+    const _sessionNum    = _params.get('num')       || '';
+    const _clinicianName = _params.get('clinician') || 'Unassigned';
 
-    // Pre-fill the left-rail session panel immediately (before WS data arrives)
-    document.addEventListener('DOMContentLoaded', () => {});
     // Apply immediately since script is at end of body
     document.getElementById('sessionTitle').textContent  = _sessionTitle;
     document.getElementById('clientName').textContent    = _patientName;
+    document.getElementById('clinicianName').textContent = _clinicianName;
 
     // Update page title
     document.title = _patientName
@@ -190,7 +190,7 @@
     function renderSession(session, count) {
       // Prefer URL params for title + client so dashboard context is always shown
       sessionTitle.textContent  = _sessionTitle || session.session_title || "Live Session";
-      clinicianName.textContent = session.clinician || "Unassigned";
+      clinicianName.textContent = _clinicianName || session.clinician || "Unassigned";
       clientName.textContent    = _patientName  || session.client || "Active Client";
       startedAt.textContent = session.started_at ? new Date(session.started_at).toLocaleTimeString() : "Waiting";
 

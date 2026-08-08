@@ -997,7 +997,7 @@
               ${patient.sessions.length === 0
                 ? `<div style="font-size:0.78rem;color:var(--muted);padding:0.5rem 0;">No sessions recorded yet.</div>`
                 : patient.sessions.map((s, si) => `
-                    <a class="session-item" href="/session?patient=${encodeURIComponent(fullName)}&session=${encodeURIComponent(s.title || 'Session ' + (si+1))}&num=${si+1}" title="Open session transcript">
+                    <a class="session-item" href="/session?patient=${encodeURIComponent(fullName)}&session=${encodeURIComponent(s.title || 'Session ' + (si+1))}&num=${si+1}&clinician=${encodeURIComponent('Dr. ' + displayName)}" title="Open session transcript">
                       <span class="session-dot ${s.ended ? 'ended' : ''}"></span>
                       <div class="session-info">
                         <div class="session-title">${escHtml(s.title || 'Session ' + (si+1))}</div>
@@ -1050,11 +1050,12 @@
     });
     saveState();
 
-    // Navigate to the session page with patient context in the URL
+    // Navigate to the session page with patient + clinician context in the URL
     const params = new URLSearchParams({
       patient: fullName,
       session: sessionTitle,
-      num: sessionNum
+      num: sessionNum,
+      clinician: `Dr. ${displayName}`
     });
     window.location.href = `/session?${params.toString()}`;
   }
